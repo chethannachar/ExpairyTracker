@@ -1,228 +1,177 @@
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   FlatList,
-  Image,
+  Pressable,
   SafeAreaView,
   StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { Svg, Circle as SvgCircle } from 'react-native-svg';
+
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import styles from './HomeScreen';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+import {
+  AnimatedPill,
+  Banner,
+  CATEGORY_LIST,
+  Row
+} from "./data.tsx";
 
-/* ---------- Demo data ---------- */
-const CATEGORIES = [
-  { id: 'food', title: 'Food', icon: 'food' },
-  { id: 'medicine', title: 'Medicine', icon: 'medical-bag' },
-  { id: 'grocery', title: 'Grocery', icon: 'shopping' },
-  { id: 'appliance', title: 'Appliances', icon: 'blender' },
-  { id: 'cosmetics', title: 'Cosmetics', icon: 'lipstick' },
-];
+import AdditionalContent from './AdditionalContent';
+import {
+  ArchiveModal,
+  CustomAlertModal,
+  NotificationsModal
+} from './content.tsx';
 
-const EXPIRING = [
-  {
-    id: '1',
-    name: 'Milk Packet',
-    daysLeft: 2,
-    category: 'food',
-    image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=80',
-  },
-  {
-    id: '2',
-    name: 'Crocin Strip',
-    daysLeft: 5,
-    category: 'medicine',
-    image: 'https://images.unsplash.com/photo-1608848461950-0fe51df2b056?w=1200&q=80',
-  },
-  {
-    id: '3',
-    name: 'Bread Loaf',
-    daysLeft: 1,
-    category: 'grocery',
-    image: 'https://images.unsplash.com/photo-1579632652768-5ab21a6856f6?w=1200&q=80',
-  },
-  {
-    id: '4',
-    name: 'Vitamin C',
-    daysLeft: 3,
-    category: 'medicine',
-    image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde0f?w=1200&q=80',
-  },
-];
+const BACKEND_URL = "http://10.170.86.65:5000";
 
-/* ---------- Radial Indicator ---------- */
-function Radial({ daysLeft = 0, size = 46, stroke = 4, maxDays = 14 }) {
-  const pct = Math.max(0, Math.min(1, (maxDays - daysLeft) / maxDays));
-  const radius = (size - stroke) / 2;
-  const circ = Math.PI * 2 * radius;
-  const offset = circ * (1 - pct);
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
-  let color = '#22C55E';
-  if (daysLeft <= 1) color = '#FF3B30';
-  else if (daysLeft <= 2) color = '#FF7A45';
-  else if (daysLeft <= 5) color = '#FFB84D';
-
-  return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <SvgCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#F1F6FF"
-          strokeWidth={stroke}
-          fill="none"
-        />
-        <SvgCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={stroke}
-          strokeDasharray={`${circ}`}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          fill="none"
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
-        />
-      </Svg>
-
-      <View style={styles.radialCenter}>
-        <Text style={styles.radialNumber}>{daysLeft}</Text>
-        <Text style={styles.radialUnit}>d</Text>
-      </View>
-    </View>
-  );
-}
-
-/* ---------- Animated Category Pill ---------- */
-function AnimatedPill({ item, index, scrollX, active, onPress }) {
-  const inputRange = [(index - 1) * 110, index * 110, (index + 1) * 110];
-  const scale = scrollX.interpolate({
-    inputRange,
-    outputRange: [1, 1.06, 1],
-    extrapolate: 'clamp',
-  });
-
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => onPress(item)}
-        style={[styles.pill, active ? styles.pillActive : styles.pillInactive]}
-      >
-        <MaterialCommunityIcons
-          name={item.icon}
-          size={18}
-          color={active ? '#fff' : '#274060'}
-        />
-        <Text style={[styles.pillText, active && styles.pillTextActive]}>
-          {item.title}
-        </Text>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
-
-/* ---------- Hero Section ---------- */
-function Hero() {
-  return (
-    <View style={styles.bigHero}>
-      <View style={styles.bigHeroLeft}>
-        <Text style={styles.bigHeroTitle}>Save food. Save money.</Text>
-        <Text style={styles.bigHeroSubtitle}>
-          Smart reminders, pantry analytics & trending UX — built for millions.
-        </Text>
-
-        <View style={styles.bigHeroActions}>
-          <TouchableOpacity style={styles.primaryBtn}>
-            <MaterialIcons name="add" size={16} color="#fff" />
-            <Text style={styles.primaryBtnText}>Add item</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.ghostBtn}>
-            <Text style={styles.ghostBtnText}>How it works</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <Image
-        source={{
-          uri: 'https://images.unsplash.com/photo-1516687400427-0b4b4b05a9f9?w=1200&q=80',
-        }}
-        style={styles.bigHeroImage}
-      />
-    </View>
-  );
-}
-
-/* ---------- Expiring Item Row ---------- */
-function Row({ item, index }) {
-  const animY = useRef(new Animated.Value(18)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(animY, {
-        toValue: 0,
-        duration: 420,
-        delay: index * 60,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 420,
-        delay: index * 60,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={[styles.rowCard, { transform: [{ translateY: animY }], opacity }]}
-    >
-      <Image source={{ uri: item.image }} style={styles.rowImage} />
-
-      <View style={styles.rowBody}>
-        <Text numberOfLines={1} style={styles.rowTitle}>
-          {item.name}
-        </Text>
-
-        <Text style={styles.rowSubtitle}>
-          {item.category} •{' '}
-          {item.daysLeft <= 1 ? 'Expires today' : `${item.daysLeft} days`}
-        </Text>
-      </View>
-
-      <Radial daysLeft={item.daysLeft} />
-    </Animated.View>
-  );
-}
-
-/* ---------- Main Screen Component ---------- */
 export default function HomeScreen() {
   const [activeCategory, setActiveCategory] = useState(null);
   const [query, setQuery] = useState('');
   const scrollX = useRef(new Animated.Value(0)).current;
+  const [items, setItems] = useState([]);
 
+  /* MODAL STATES */
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newCategory, setNewCategory] = useState('food');
+  const [newImage, setNewImage] = useState('');
+  const [newDate, setNewDate] = useState(new Date());
+  const [showDate, setShowDate] = useState(false);
+  const [showImgPicker, setShowImgPicker] = useState(false);
+
+  /* DELETE POPUP */
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  /* ARCHIVE MODAL */
+  const [archiveVisible, setArchiveVisible] = useState(false);
+
+  /* NOTIFICATION STATES */
+  const [notifications, setNotifications] = useState([]);
+  const [notificationVisible, setNotificationVisible] = useState(false);
+  const [notifiedProductIds, setNotifiedProductIds] = useState(new Set());
+
+  /* CUSTOM ALERT STATES */
+  const [customAlertVisible, setCustomAlertVisible] = useState(false);
+  const [customAlertData, setCustomAlertData] = useState({
+    title: '',
+    message: '',
+    type: 'info'
+  });
+
+  /* =====================================================
+     REQUEST NOTIFICATION PERMISSIONS
+  ===================================================== */
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Notification permissions not granted');
+      }
+    };
+    requestPermissions();
+  }, []);
+
+  /* =====================================================
+     FETCH PRODUCTS
+  ===================================================== */
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/products`);
+      const json = await res.json();
+      if (json.products) {
+        setItems(json.products);
+        checkExpiringProducts(json.products);
+      }
+    } catch (err) {
+      console.log("Error fetching products:", err);
+    }
+  };
+
+  /* =====================================================
+     CHECK EXPIRING PRODUCTS (within 3 days)
+  ===================================================== */
+  const checkExpiringProducts = async (productList) => {
+    const expiringProducts = productList.filter(
+      item => item.daysLeft > 0 && item.daysLeft <= 3
+    );
+
+    for (const item of expiringProducts) {
+      if (!notifiedProductIds.has(item.id)) {
+        const notificationMessage = `${item.name} is expiring in ${item.daysLeft} day${item.daysLeft > 1 ? 's' : ''} on ${new Date(item.expiry_date).toDateString()}`;
+        
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `${item.name} expiring soon! ⏰`,
+            body: notificationMessage,
+            data: {
+              productId: item.id,
+              productName: item.name,
+              daysLeft: item.daysLeft,
+            },
+            badge: 1,
+          },
+          trigger: null,
+        });
+
+        setNotifiedProductIds(prev => new Set([...prev, item.id]));
+      }
+    }
+
+    const newNotifications = expiringProducts.map(item => ({
+      id: item.id,
+      title: `${item.name} expiring soon`,
+      message: `${item.name} is expiring in ${item.daysLeft} day${item.daysLeft > 1 ? 's' : ''} on ${new Date(item.expiry_date).toDateString()}`,
+      timestamp: new Date().toLocaleTimeString(),
+      daysLeft: item.daysLeft,
+      read: false
+    }));
+
+    setNotifications(prev => {
+      const existingIds = new Set(prev.map(n => n.id));
+      const filteredNew = newNotifications.filter(n => !existingIds.has(n.id));
+      return [...filteredNew, ...prev];
+    });
+  };
+
+  /* =====================================================
+     REFRESH PRODUCTS PERIODICALLY
+  ===================================================== */
+  useEffect(() => {
+    fetchProducts();
+    const interval = setInterval(fetchProducts, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  /* =====================================================
+     SORT + FILTER
+  ===================================================== */
   const sorted = useMemo(
-    () => EXPIRING.slice().sort((a, b) => a.daysLeft - b.daysLeft),
-    []
+    () => items.slice().sort((a, b) => a.daysLeft - b.daysLeft),
+    [items]
   );
 
   const filtered = useMemo(() => {
     const base = activeCategory
-      ? sorted.filter(s => s.category === activeCategory.id)
-      : sorted;
+      ? sorted.filter(s => s.category === activeCategory.id && s.daysLeft > 0)
+      : sorted.filter(s => s.daysLeft > 0);
 
     if (!query.trim()) return base;
 
@@ -234,109 +183,281 @@ export default function HomeScreen() {
     );
   }, [activeCategory, query, sorted]);
 
+  /* =====================================================
+     EXPIRED ITEMS (for archive)
+  ===================================================== */
+  const expiredItems = useMemo(() => {
+    return items.filter(item => item.daysLeft <= 0).sort((a, b) => a.daysLeft - b.daysLeft);
+  }, [items]);
+
+  /* =====================================================
+     OPEN DELETE POPUP
+  ===================================================== */
+  const openDeletePopup = (item) => {
+    setSelectedItem(item);
+    setDeleteVisible(true);
+  };
+
+  /* =====================================================
+     DELETE PRODUCT
+  ===================================================== */
+  const handleDelete = async () => {
+    if (!selectedItem) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/delete-product/${selectedItem.id}`,
+        { method: "DELETE" }
+      );
+
+      if (res.ok) {
+        setDeleteVisible(false);
+        setSelectedItem(null);
+        setDeleting(false);
+        showCustomAlert("Success", `${selectedItem.name} removed successfully`, "success");
+        await fetchProducts();
+      } else {
+        let txt = await res.text();
+        setDeleteVisible(false);
+        setDeleting(false);
+        showCustomAlert("Error", `Failed to delete product. ${txt}`, "error");
+      }
+    } catch (err) {
+      setDeleteVisible(false);
+      setDeleting(false);
+      showCustomAlert("Network Error", "Could not reach server.", "error");
+      console.log("Delete error:", err);
+    }
+  };
+
+  /* =====================================================
+     CUSTOM ALERT
+  ===================================================== */
+  const showCustomAlert = (title, message, type = "info") => {
+    setCustomAlertData({ title, message, type });
+    setCustomAlertVisible(true);
+  };
+
+  /* =====================================================
+     ADD PRODUCT
+  ===================================================== */
+  const handleAdd = async () => {
+    if (!newName.trim()) {
+      showCustomAlert("Error", "Please enter a product name.", "error");
+      return;
+    }
+
+    try {
+      const payload = {
+        name: newName,
+        category: newCategory,
+        image: newImage.trim() || null,
+        expiry_date: newDate.toISOString().split("T")[0],
+      };
+
+      const res = await fetch(`${BACKEND_URL}/add-product`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (json.status === "success") {
+        setModalVisible(false);
+        setNewName('');
+        setNewImage('');
+        setNewCategory('food');
+        showCustomAlert("Success", "Item added to database!", "success");
+        fetchProducts();
+      } else {
+        showCustomAlert("Error", "Server error.", "error");
+      }
+    } catch (error) {
+      showCustomAlert("Network Error", "Could not reach backend.", "error");
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#07133F"
-        translucent={false}
-      />
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <View style={{ height: StatusBar.currentHeight, backgroundColor: '#2D3648' }} />
 
-      {/* Header */}
-      <View style={styles.headerArea}>
-        <View style={styles.headerGlass}>
-          <View>
-            <Text style={styles.logo}>Pantry</Text>
-            <Text style={styles.logoSub}>Expiry • trending UI</Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <MaterialIcons
-                name="notifications-none"
-                size={18}
-                color="#274060"
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.iconBtn}>
-              <MaterialCommunityIcons name="account" size={18} color="#274060" />
-            </TouchableOpacity>
-          </View>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Expiry Dashboard</Text>
+          <Text style={styles.subtitle}>Smart Inventory System</Text>
         </View>
 
-        {/* Search */}
-        <View style={styles.searchRow}>
-          <MaterialIcons name="search" size={18} color="#9AA6C0" />
-
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for items or category"
-            placeholderTextColor="#9AA6C0"
-            value={query}
-            onChangeText={setQuery}
-          />
-
+        <View style={styles.rightIcons}>
           <TouchableOpacity
             onPress={() => {
-              setQuery('');
-              setActiveCategory(null);
+              setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+              setNotificationVisible(true);
             }}
           >
-            <MaterialIcons name="close" size={18} color="#9AA6C0" />
+            <View>
+              <MaterialIcons name="notifications-none" size={22} color="#2D3648" />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{unreadCount}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setArchiveVisible(true)}>
+            <MaterialCommunityIcons name="archive-outline" size={22} color="#2D3648" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.addTopBtn}
+            onPress={() => setModalVisible(true)}
+          >
+            <MaterialIcons name="add" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Content */}
-      <View style={styles.content}>
-        <Hero />
+      {/* SEARCH */}
+      <View style={styles.searchRow}>
+        <MaterialIcons name="search" size={18} color="#9AA6C0" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for items or category"
+          placeholderTextColor="#9AA6C0"
+          value={query}
+          onChangeText={setQuery}
+        />
+        <TouchableOpacity
+          onPress={() => {
+            setQuery('');
+            setActiveCategory(null);
+          }}
+        >
+          <MaterialIcons name="close" size={18} color="#9AA6C0" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Categories */}
+      {/* BODY */}
+      <View style={styles.content}>
+        <Banner />
+
         <View style={styles.sectionTop}>
           <Text style={styles.sectionTitle}>Categories</Text>
         </View>
 
-        <Animated.FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={CATEGORIES}
-          keyExtractor={c => c.id}
-          contentContainerStyle={styles.pillsContainer}
-          scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: true }
-          )}
-          renderItem={({ item, index }) => (
-            <AnimatedPill
-              item={item}
-              index={index}
-              scrollX={scrollX}
-              active={activeCategory?.id === item.id}
-              onPress={c =>
-                setActiveCategory(prev => (prev?.id === c.id ? null : c))
-              }
-            />
-          )}
-        />
+        <View style={styles.categoriesWrapper}>
+          <Animated.FlatList
+            horizontal
+            data={CATEGORY_LIST}
+            keyExtractor={c => c.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillsContainer}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: true }
+            )}
+            renderItem={({ item, index }) => (
+              <AnimatedPill
+                item={item}
+                index={index}
+                scrollX={scrollX}
+                active={activeCategory?.id === item.id}
+                onPress={c =>
+                  setActiveCategory(prev =>
+                    prev?.id === c.id ? null : c
+                  )
+                }
+              />
+            )}
+          />
+        </View>
 
-        {/* Expiring Soon */}
         <View style={styles.sectionTop}>
           <Text style={styles.sectionTitle}>Expiring Soon</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAll}>View all</Text>
-          </TouchableOpacity>
         </View>
 
         <FlatList
           data={filtered}
-          keyExtractor={item => item.id}
+          keyExtractor={item => String(item.id)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 120 }}
-          renderItem={({ item, index }) => <Row item={item} index={index} />}
+          renderItem={({ item, index }) => (
+            <Pressable
+              onLongPress={() => openDeletePopup(item)}
+              delayLongPress={300}
+              android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
+            >
+              <Row item={item} index={index} />
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', marginTop: 40 }}>
+              <MaterialCommunityIcons name="inbox-outline" size={48} color="#C0C5D0" />
+              <Text style={{ color: '#6B7280', marginTop: 12, fontSize: 16 }}>
+                No items expiring soon
+              </Text>
+            </View>
+          }
         />
       </View>
+
+      {/* ================================
+          MODALS
+      ================================ */}
+      <ArchiveModal
+        visible={archiveVisible}
+        setVisible={setArchiveVisible}
+        expiredItems={expiredItems}
+        onLongPress={openDeletePopup}
+      />
+
+      <NotificationsModal
+        visible={notificationVisible}
+        setVisible={setNotificationVisible}
+        notifications={notifications}
+      />
+
+      <CustomAlertModal
+        visible={customAlertVisible}
+        setVisible={setCustomAlertVisible}
+        data={customAlertData}
+      />
+
+      {/* ================================
+          ADDITIONAL CONTENT (MODALS)
+      ================================ */}
+      <AdditionalContent
+        modalVisible={modalVisible}
+        setModalVisible={setModalVisible}
+        newName={newName}
+        setNewName={setNewName}
+        newCategory={newCategory}
+        setNewCategory={setNewCategory}
+        newImage={newImage}
+        setNewImage={setNewImage}
+        newDate={newDate}
+        setNewDate={setNewDate}
+        showDate={showDate}
+        setShowDate={setShowDate}
+        showImgPicker={showImgPicker}
+        setShowImgPicker={setShowImgPicker}
+        deleteVisible={deleteVisible}
+        setDeleteVisible={setDeleteVisible}
+        selectedItem={selectedItem}
+        setSelectedItem={setSelectedItem}
+        deleting={deleting}
+        setDeleting={setDeleting}
+        handleAdd={handleAdd}
+        handleDelete={handleDelete}
+        fetchProducts={fetchProducts}
+      />
     </SafeAreaView>
   );
 }
