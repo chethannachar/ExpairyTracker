@@ -8,10 +8,23 @@
     "scheme": "idp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#2D3648"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.idp.mobile",
+      "googleServicesFile":"C:/Users/ADMIN/idp/app/google-services (1).json",
+      "useNextNotificationsApi": true,
+      "permissions": [
+        "NOTIFICATIONS",
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -24,7 +37,7 @@
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
-    },
+    }, 
     "plugins": [
       "expo-router",
       [
@@ -38,11 +51,18 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c86942f5-84ae-4916-ac96-f5672bce30ab"
+      }
     }
   }
 }
